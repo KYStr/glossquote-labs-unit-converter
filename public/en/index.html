@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="referrer" content="no-referrer">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+    <title>Unit Converter for Length, Area, Mass, Volume, and Temperature | GlossQuote-Labs</title>
+    <meta name="description" content="Convert common units of length, area, mass, volume, and temperature in your browser. See formulas and precision limits; the tool does not actively save or upload input.">
+    <link rel="stylesheet" href="../styles/tokens.css">
+    <link rel="stylesheet" href="../styles/app.css">
+    <script type="module" src="../js/app.mjs"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="./index.html">GlossQuote-Labs</a>
+      <span class="location">Unit Converter</span>
+      <div class="language-switcher">
+        <nav class="language-links" aria-label="Language">
+          <a lang="zh-Hant" hreflang="zh-Hant" href="../index.html">繁體中文</a>
+          <a lang="en" hreflang="en" href="./index.html" aria-current="page">English</a>
+        </nav>
+        <p class="language-note">Changing languages clears the input.</p>
+      </div>
+    </header>
+    <main class="task-canvas">
+      <section class="tool-section" aria-labelledby="page-title">
+        <h1 id="page-title">Unit Converter</h1>
+        <p class="intro">Choose a category, enter a value, and select source and target units. The result updates on this page so you can check everyday measurements.</p>
+
+        <p id="unsupported-note" class="unsupported-note" role="note">
+          This browser could not start the converter. Open this page in a browser that supports JavaScript modules. The guide and unit list below remain available.
+        </p>
+
+        <form id="converter-form">
+          <fieldset id="converter-controls" class="converter-controls" disabled>
+            <legend class="visually-hidden">Converter workspace</legend>
+
+            <div class="field">
+              <label for="category-select">Category</label>
+              <select id="category-select" name="category" aria-describedby="category-help" aria-invalid="false">
+                <option value="">Tool not started</option>
+              </select>
+              <p id="category-help" class="field-help">Choose the kind of unit for your value.</p>
+            </div>
+
+            <div class="field">
+              <label for="number-input">Value</label>
+              <input id="number-input" name="numberText" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="e.g. 12.5" aria-describedby="number-help" aria-invalid="false">
+              <p id="number-help" class="field-help">Enter a decimal number or scientific notation. Commas and expressions are not accepted.</p>
+              <p id="number-error" class="field-error" hidden></p>
+            </div>
+
+            <div class="unit-row">
+              <div class="field">
+                <label for="source-unit">From</label>
+                <select id="source-unit" name="from" aria-describedby="source-help" aria-invalid="false">
+                  <option value="">Tool not started</option>
+                </select>
+                <p id="source-help" class="field-help">Choose the unit currently used by the value.</p>
+              </div>
+
+              <div class="swap-group">
+                <button id="swap-units" class="button button-secondary" type="button" aria-describedby="swap-help">Swap units</button>
+                <p id="swap-help" class="field-help">Keeps the entered value and swaps the two units.</p>
+              </div>
+
+              <div class="field">
+                <label for="target-unit">To</label>
+                <select id="target-unit" name="to" aria-describedby="target-help" aria-invalid="false">
+                  <option value="">Tool not started</option>
+                </select>
+                <p id="target-help" class="field-help">Choose the unit to convert to.</p>
+              </div>
+            </div>
+            <p id="unit-error" class="field-error unit-error" hidden></p>
+
+            <section class="result-section" aria-labelledby="result-title">
+              <div class="result-heading-row">
+                <h2 id="result-title">Result</h2>
+                <button id="clear-input" class="button button-secondary" type="button">Clear</button>
+              </div>
+              <output id="conversion-result" class="conversion-result" for="number-input source-unit target-unit" aria-label="Conversion result" aria-live="off">—</output>
+              <p id="precision-note" class="precision-note" hidden>Up to 12 significant digits are displayed; the result is approximate.</p>
+              <p id="formula-text" class="formula-text" hidden></p>
+            </section>
+          </fieldset>
+        </form>
+
+        <p id="conversion-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
+      </section>
+
+      <section class="usage-notes" aria-labelledby="usage-title">
+        <h2 id="usage-title">How to use it and limits</h2>
+        <p>Enter up to 64 characters, including leading and trailing spaces. Zero is accepted; a non-zero value must have an absolute value from 1e-12 through 1e12, inclusive. Shorten a value that exceeds the length limit. Length, area, mass, and volume must be non-negative. Temperatures cannot be below absolute zero.</p>
+        <p>Conversions use fixed factors and browser floating-point arithmetic. Results show at most 12 significant digits; displayed precision is not the precision of the original measurement. Reloading the page clears the input.</p>
+      </section>
+
+      <section class="reference-section">
+        <h2>Supported categories and units</h2>
+        <ul class="content-list">
+          <li><strong>Length:</strong> millimetres (mm), centimetres (cm), metres (m), kilometres (km), inches (in), and feet (ft).</li>
+          <li><strong>Area:</strong> square centimetres (cm²), square metres (m²), square kilometres (km²), and hectares (ha).</li>
+          <li><strong>Mass:</strong> milligrams (mg), grams (g), kilograms (kg), and avoirdupois pounds (lb).</li>
+          <li><strong>Volume:</strong> millilitres (mL), litres (L), and cubic metres (m³).</li>
+          <li><strong>Temperature:</strong> degrees Celsius (°C), degrees Fahrenheit (°F), and kelvins (K).</li>
+        </ul>
+      </section>
+
+      <section class="reference-section">
+        <h2>Convert in four steps</h2>
+        <ol class="content-list">
+          <li>Choose length, area, mass, volume, or temperature.</li>
+          <li>Enter the value. A blank field stays empty; it is not treated as zero.</li>
+          <li>Choose the source and target units. <strong>Swap units</strong> keeps the entered value and exchanges the two units.</li>
+          <li>Read the live result and formula. They update when the value or either unit changes.</li>
+        </ol>
+      </section>
+
+      <section class="reference-section">
+        <h2>Number format and result range</h2>
+        <ul class="content-list">
+          <li>Enter ASCII digits, an optional leading sign, a decimal point, or scientific notation, such as <code>12.5</code>, <code>.5</code>, <code>1.</code>, or <code>1.25e2</code>. Leading and trailing ASCII whitespace is ignored.</li>
+          <li>Thousands separators, full-width digits, expressions, hexadecimal values, NaN, and Infinity are rejected.</li>
+          <li>Length, area, mass, and volume accept non-negative values only. Temperature inputs are temperature values, not temperature differences. The lower bounds are -273.15 °C, -459.67 °F, and 0 K.</li>
+          <li>A result must remain in the supported range: its absolute value cannot exceed 1e18, and a non-zero result must be at least 1e-18 in absolute value. If the result is out of range, the previous result is cleared.</li>
+        </ul>
+      </section>
+
+      <section class="reference-section">
+        <h2>How your data is handled</h2>
+        <p>Conversion runs in this page's browser. The tool uses the input only in page memory and does not actively write it to browser storage or upload it. Reloading clears the current value. A website host may still receive the connection information needed for an ordinary page request.</p>
+      </section>
+
+      <section class="reference-section">
+        <h2>Frequently asked questions</h2>
+        <dl class="faq-list">
+          <div>
+            <dt>Can I convert currencies or exchange rates?</dt>
+            <dd>No. The converter supports only the fixed units listed above; it does not provide exchange rates or other live data.</dd>
+          </div>
+          <div>
+            <dt>Are the results exact?</dt>
+            <dd>Conversions use fixed factors and browser floating-point arithmetic. The display shows at most 12 significant digits, which does not represent the precision of the original measurement.</dd>
+          </div>
+          <div>
+            <dt>Can I convert a temperature difference from Celsius to Fahrenheit?</dt>
+            <dd>No. The temperature field represents a temperature value, so it cannot be used to convert temperature differences.</dd>
+          </div>
+          <div>
+            <dt>Is my input saved or uploaded?</dt>
+            <dd>The tool does not actively save or upload input. The value is used in page memory for the current conversion, and reloading the page clears it.</dd>
+          </div>
+          <div>
+            <dt>Can I enter a negative temperature?</dt>
+            <dd>Yes, as long as it is not below absolute zero in the source unit. Length, area, mass, and volume accept zero or positive values only.</dd>
+          </div>
+          <div>
+            <dt>Can I enter 1,000 or a math expression?</dt>
+            <dd>No. Enter one ASCII decimal number or a value in scientific notation. Commas, full-width digits, and expressions are not accepted.</dd>
+          </div>
+        </dl>
+      </section>
+    </main>
+  </body>
+</html>

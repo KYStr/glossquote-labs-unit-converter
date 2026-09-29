@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="referrer" content="no-referrer">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+    <title>常用單位換算：長度、面積、質量、容量與溫度｜GlossQuote-Labs</title>
+    <meta name="description" content="在瀏覽器內換算長度、面積、質量、容量與溫度。查看換算公式與精度限制；工具不主動保存或上傳輸入，重新載入會清空。">
+    <link rel="stylesheet" href="./styles/tokens.css">
+    <link rel="stylesheet" href="./styles/app.css">
+    <script type="module" src="./js/app.mjs"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="./index.html">GlossQuote-Labs</a>
+      <span class="location">常用單位換算</span>
+      <div class="language-switcher">
+        <nav class="language-links" aria-label="語言">
+          <a lang="zh-Hant" hreflang="zh-Hant" href="./index.html" aria-current="page">繁體中文</a>
+          <a lang="en" hreflang="en" href="./en/index.html">English</a>
+        </nav>
+        <p class="language-note">切換語言會清空輸入。</p>
+      </div>
+    </header>
+    <main class="task-canvas">
+      <section class="tool-section" aria-labelledby="page-title">
+        <h1 id="page-title">常用單位換算</h1>
+        <p class="intro">選擇類別、輸入數值，再選擇來源與目標單位。結果會在本頁直接更新，方便核對日常尺寸、容量與溫度。</p>
+
+        <p id="unsupported-note" class="unsupported-note" role="note">
+          此瀏覽器無法啟動換算工具。請在支援 JavaScript 模組的瀏覽器開啟。下方的使用說明與單位清單仍可閱讀。
+        </p>
+
+        <form id="converter-form">
+          <fieldset id="converter-controls" class="converter-controls" disabled>
+            <legend class="visually-hidden">換算工作區</legend>
+
+            <div class="field">
+              <label for="category-select">類別</label>
+              <select id="category-select" name="category" aria-describedby="category-help" aria-invalid="false">
+                <option value="">工具尚未啟動</option>
+              </select>
+              <p id="category-help" class="field-help">選擇數值所屬的單位類別。</p>
+            </div>
+
+            <div class="field">
+              <label for="number-input">數值</label>
+              <input id="number-input" name="numberText" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="例如 12.5" aria-describedby="number-help" aria-invalid="false">
+              <p id="number-help" class="field-help">接受十進位數字與科學記號；不接受逗號或運算式。</p>
+              <p id="number-error" class="field-error" hidden></p>
+            </div>
+
+            <div class="unit-row">
+              <div class="field">
+                <label for="source-unit">來源單位</label>
+                <select id="source-unit" name="from" aria-describedby="source-help" aria-invalid="false">
+                  <option value="">工具尚未啟動</option>
+                </select>
+                <p id="source-help" class="field-help">選擇輸入數值目前使用的單位。</p>
+              </div>
+
+              <div class="swap-group">
+                <button id="swap-units" class="button button-secondary" type="button" aria-describedby="swap-help">互換單位</button>
+                <p id="swap-help" class="field-help">保留輸入數值，交換兩端單位。</p>
+              </div>
+
+              <div class="field">
+                <label for="target-unit">目標單位</label>
+                <select id="target-unit" name="to" aria-describedby="target-help" aria-invalid="false">
+                  <option value="">工具尚未啟動</option>
+                </select>
+                <p id="target-help" class="field-help">選擇要換算成的單位。</p>
+              </div>
+            </div>
+            <p id="unit-error" class="field-error unit-error" hidden></p>
+
+            <section class="result-section" aria-labelledby="result-title">
+              <div class="result-heading-row">
+                <h2 id="result-title">結果</h2>
+                <button id="clear-input" class="button button-secondary" type="button">清除</button>
+              </div>
+              <output id="conversion-result" class="conversion-result" for="number-input source-unit target-unit" aria-label="換算結果" aria-live="off">—</output>
+              <p id="precision-note" class="precision-note" hidden>顯示最多 12 位有效數字，結果為近似值。</p>
+              <p id="formula-text" class="formula-text" hidden></p>
+            </section>
+          </fieldset>
+        </form>
+
+        <p id="conversion-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
+      </section>
+
+      <section class="usage-notes" aria-labelledby="usage-title">
+        <h2 id="usage-title">使用方式與限制</h2>
+        <p>輸入最多 64 個字元，首尾空白也計入。數值可為 0；非零數值的絕對值須介於 1e-12 至 1e12（含）。超過長度上限時請縮短輸入。長度、面積、質量與容量不可輸入負數；溫度不可低於絕對零度。</p>
+        <p>換算使用固定係數與瀏覽器浮點數運算。結果最多顯示 12 位有效數字，顯示精度不代表原始測量精度。重新載入頁面會清空輸入。</p>
+      </section>
+
+      <section class="reference-section">
+        <h2>支援的類別與單位</h2>
+        <ul class="content-list">
+          <li><strong>長度：</strong>毫米 (mm)、公分 (cm)、公尺 (m)、公里 (km)、英吋 (in)、英呎 (ft)。</li>
+          <li><strong>面積：</strong>平方公分 (cm²)、平方公尺 (m²)、平方公里 (km²)、公頃 (ha)。</li>
+          <li><strong>質量：</strong>毫克 (mg)、公克 (g)、公斤 (kg)、常衡磅 (lb)。</li>
+          <li><strong>容量：</strong>毫升 (mL)、公升 (L)、立方公尺 (m³)。</li>
+          <li><strong>溫度：</strong>攝氏 (°C)、華氏 (°F)、克耳文 (K)。</li>
+        </ul>
+      </section>
+
+      <section class="reference-section">
+        <h2>四步完成換算</h2>
+        <ol class="content-list">
+          <li>選擇長度、面積、質量、容量或溫度。</li>
+          <li>輸入要換算的數值；欄位留白時不會把空白當成 0。</li>
+          <li>選擇來源與目標單位。按「互換單位」會保留輸入數值，只交換兩端單位。</li>
+          <li>查看即時結果與公式。數值或單位改變時，結果會一併更新。</li>
+        </ol>
+      </section>
+
+      <section class="reference-section">
+        <h2>數字格式與結果範圍</h2>
+        <ul class="content-list">
+          <li>可輸入 ASCII 數字、小數點、開頭的正負號與科學記號，例如 <code>12.5</code>、<code>.5</code>、<code>1.</code>、<code>1.25e2</code>。只會忽略首尾 ASCII 空白。</li>
+          <li>不接受千分位逗號、全形數字、運算式、十六進位、NaN 或 Infinity。</li>
+          <li>長度、面積、質量與容量只接受非負數。溫度是溫度值，不是溫差；最低值為攝氏 -273.15、華氏 -459.67、克耳文 0。</li>
+          <li>結果必須在目前支援範圍內：絕對值不超過 1e18；非零結果的絕對值至少為 1e-18。超出範圍時不會保留舊結果。</li>
+        </ul>
+      </section>
+
+      <section class="reference-section">
+        <h2>資料如何處理</h2>
+        <p>換算在這個頁面的瀏覽器中完成。工具只在頁面記憶體使用輸入，不主動寫入瀏覽器儲存空間或上傳數值；重新載入會清空目前內容。網站主機仍可能收到一般頁面請求所需的連線資訊。</p>
+      </section>
+
+      <section class="reference-section">
+        <h2>常見問題</h2>
+        <dl class="faq-list">
+          <div>
+            <dt>可以換算貨幣或匯率嗎？</dt>
+            <dd>不可以。目前只支援上方列出的固定單位，不提供匯率或其他即時資料。</dd>
+          </div>
+          <div>
+            <dt>結果完全精確嗎？</dt>
+            <dd>換算使用固定係數與瀏覽器浮點數運算，畫面最多顯示 12 位有效數字。顯示精度不等於原始測量精度。</dd>
+          </div>
+          <div>
+            <dt>可以把攝氏溫差換成華氏溫差嗎？</dt>
+            <dd>不可以。溫度欄位代表溫度值，不能用於溫差換算。</dd>
+          </div>
+          <div>
+            <dt>輸入數值會被保存或上傳嗎？</dt>
+            <dd>工具不主動保存或上傳輸入；數值只在頁面記憶體中供本次換算使用。重新載入頁面會清空輸入。</dd>
+          </div>
+          <div>
+            <dt>溫度可以輸入負數嗎？</dt>
+            <dd>可以，但不能低於來源單位的絕對零度下限。長度、面積、質量與容量則只接受 0 或正數。</dd>
+          </div>
+          <div>
+            <dt>可以輸入 1,000 或數學算式嗎？</dt>
+            <dd>不可以。請輸入單一 ASCII 十進位數字或科學記號；逗號、全形數字和算式都不接受。</dd>
+          </div>
+        </dl>
+      </section>
+    </main>
+  </body>
+</html>

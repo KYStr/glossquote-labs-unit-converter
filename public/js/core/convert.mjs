@@ -6,6 +6,7 @@ const MIN_INPUT_MAGNITUDE = 1e-12;
 const MAX_INPUT_MAGNITUDE = 1e12;
 const MIN_RESULT_MAGNITUDE = 1e-18;
 const MAX_RESULT_MAGNITUDE = 1e18;
+const RESULT_RANGE_SCALE = 10n ** 18n;
 const ABSOLUTE_ZERO = Object.freeze({ C: -273.15, F: -459.67, K: 0 });
 const TEMPERATURE_EXPRESSIONS = Object.freeze({
   "C:F": "x × 9 ÷ 5 + 32",
@@ -46,6 +47,38 @@ function isInputRange(value) {
     Math.abs(value) < MIN_INPUT_MAGNITUDE ||
     Math.abs(value) > MAX_INPUT_MAGNITUDE
   );
+}
+
+// Parse only canonical decimal strings from Number.toString() and the closed unit table.
+// BigInt digits preserve those decimals exactly without rounding a binary Number to an integer.
+function decimalFraction(decimal) {
+  const match = /^(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/.exec(decimal);
+  if (match === null) return null;
+
+  const fraction = match[2] ?? "";
+  let numerator = BigInt(`${match[1]}${fraction}`);
+  const decimalPlaces = BigInt(fraction.length) - BigInt(match[3] ?? "0");
+  if (decimalPlaces < 0n) {
+    numerator *= 10n ** -decimalPlaces;
+    return { numerator, denominator: 1n };
+  }
+  return { numerator, denominator: 10n ** decimalPlaces };
+}
+
+function isNonTemperatureResultInRange(value, source, target) {
+  if (value === 0) return true;
+
+  const valueFraction = decimalFraction(value.toString());
+  const sourceFactor = decimalFraction(source.factor.toString());
+  const targetFactor = decimalFraction(target.factor.toString());
+  if (valueFraction === null || sourceFactor === null || targetFactor === null) {
+    return false;
+  }
+
+  const numerator = valueFraction.numerator * sourceFactor.numerator * targetFactor.denominator;
+  const denominator = valueFraction.denominator * sourceFactor.denominator * targetFactor.numerator;
+  return numerator * RESULT_RANGE_SCALE >= denominator &&
+    numerator <= denominator * RESULT_RANGE_SCALE;
 }
 
 function calculateTemperature(value, from, to) {
@@ -99,16 +132,26 @@ export function convert(request) {
     return failure("NEGATIVE_QUANTITY");
   }
 
-  const result = category.id === "temperature"
+  const isTemperature = category.id === "temperature";
+  if (!isTemperature && !isNonTemperatureResultInRange(value, source, target)) {
+    return failure("RESULT_RANGE");
+  }
+
+  let result = isTemperature
     ? calculateTemperature(value, source, target)
     : value * (source.factor / target.factor);
   if (!Number.isFinite(result)) {
     return failure("RESULT_RANGE");
   }
 
-  const magnitude = Math.abs(result);
-  if (result !== 0 && (magnitude < MIN_RESULT_MAGNITUDE || magnitude > MAX_RESULT_MAGNITUDE)) {
-    return failure("RESULT_RANGE");
+  if (isTemperature) {
+    const magnitude = Math.abs(result);
+    if (result !== 0 && (magnitude < MIN_RESULT_MAGNITUDE || magnitude > MAX_RESULT_MAGNITUDE)) {
+      return failure("RESULT_RANGE");
+    }
+  } else if (value !== 0) {
+    if (result < MIN_RESULT_MAGNITUDE) result = MIN_RESULT_MAGNITUDE;
+    else if (result > MAX_RESULT_MAGNITUDE) result = MAX_RESULT_MAGNITUDE;
   }
 
   return { ok: true, value: Object.is(result, -0) ? 0 : result };

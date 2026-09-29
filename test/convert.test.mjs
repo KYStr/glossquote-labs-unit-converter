@@ -80,6 +80,12 @@ const INPUT_MINIMUM = 1e-12;
 const INPUT_MAXIMUM = 1e12;
 const RESULT_MINIMUM = 1e-18;
 const RESULT_MAXIMUM = 1e18;
+const DECIMAL_RESULT_BOUNDARIES = new Map([
+  ["length:mm:km", { input: 1e-12, output: 1e-18 }],
+  ["area:m2:km2", { input: 1e-12, output: 1e-18 }],
+  ["mass:mg:kg", { input: 1e-12, output: 1e-18 }],
+  ["volume:mL:m3", { input: 1e-12, output: 1e-18 }],
+]);
 
 function approximately(actual, expected) {
   const tolerance = Math.max(1e-12, Math.abs(expected) * 1e-12);
@@ -99,6 +105,10 @@ function convertExpected(category, from, to, value) {
       default: throw new Error("Unexpected reference temperature pair.");
     }
   }
+
+  // 四組十進位乘積都恰為 1e-18；oracle 固定數學值，不重演二進位浮點誤差。
+  const decimalBoundary = DECIMAL_RESULT_BOUNDARIES.get(`${category}:${from}:${to}`);
+  if (decimalBoundary?.input === value) return decimalBoundary.output;
 
   const units = REFERENCE_BY_CATEGORY.get(category).units;
   const source = units.find((unit) => unit.id === from);
@@ -259,10 +269,8 @@ test("U14 validates input and output bounds with the required operation order", 
     ok: false,
     code: "RESULT_RANGE",
   });
-  assert.deepEqual(convert({ category: "length", from: "mm", to: "km", value: 1e-12 }), {
-    ok: false,
-    code: "RESULT_RANGE",
-  });
+  const minimumLengthResult = assertConverted("length", "mm", "km", 1e-12, 1e-18);
+  assert.equal(formatNumber(minimumLengthResult), "1e-18");
   assertConverted("area", "km2", "cm2", 1e8, 1e18);
   assert.deepEqual(convert({ category: "area", from: "km2", to: "cm2", value: 100000001 }), {
     ok: false,

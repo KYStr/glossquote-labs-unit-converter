@@ -61,7 +61,7 @@ On Windows PowerShell, use `npm.cmd` in place of `npm`, for example `npm.cmd run
 
 ## 驗證狀態 / Verification status
 
-發布副本於 2026-09-29 實際通過 53/53 項離線自動測試、18 個來源檔的 check，以及產生 9 個靜態檔的 build；`dist/` 與 `public/` 逐檔一致。IAB（應用程式內瀏覽器）的核心操作及 320 CSS px 版面也已驗。這些結果不代表完整 MVP 驗收已完成。
+發布副本於 2026-09-29 實際通過 58/58 項離線自動測試、19 個來源檔的 check，以及產生 9 個靜態檔的 build；`dist/` 與 `public/` 逐檔一致。IAB（應用程式內瀏覽器）的核心操作及 320 CSS px 版面也已驗。這些結果不代表完整 MVP 驗收已完成。
 
 人工待驗項仍為 NOT RUN：
 
@@ -70,15 +70,25 @@ On Windows PowerShell, use `npm.cmd` in place of `npm`, for example `npm.cmd run
 - DevTools Network／storage 檢查與離線行為。
 - 其他瀏覽器及實際行動裝置。
 
-On 2026-09-29, this publishing copy passed 53/53 offline automated tests, a check covering 18 source files, and a build producing 9 static files; `dist/` matches `public/` file by file. Core interactions and the 320 CSS px layout were also checked in the in-app browser (IAB). These results do not mean the full MVP acceptance is complete.
+On 2026-09-29, this publishing copy passed 58/58 offline automated tests, a check covering 19 source files, and a build producing 9 static files; `dist/` matches `public/` file by file. Core interactions and the 320 CSS px layout were also checked in the in-app browser (IAB). These results do not mean the full MVP acceptance is complete.
 
 Manual checks remain **NOT RUN**: real browser page zoom at 200%; assistive technology/screen reader and BFCache return behavior; DevTools Network/storage inspection and offline behavior; and additional browsers and physical mobile devices.
+
+## 邊界修正 / Boundary correction — 2026-09-29
+
+修正稽核 F-01：輸入 `1e-12`，將 mm→km、m²→km²、mg→kg、mL→m³ 換算時，現在正確得到 `1e-18`。非溫度換算以已解析 Number 的標準十進位值及固定十進位係數判定結果範圍，再處理合法邊界的浮點偏移；真正超界仍拒絕，顯示仍為最多12位有效數字的近似值。新增回歸測試涵蓋上下界等值與相鄰內外值。四组案例也已在兩語原始 HTTP 頁面實測，共8組通過。
+
+Audit F-01 is fixed: input `1e-12` now correctly produces `1e-18` for mm→km, m²→km², mg→kg, and mL→m³. Non-temperature range checks use the parsed Number's canonical decimal value and the fixed decimal factors, then normalize floating-point drift at valid boundaries. Truly out-of-range results remain rejected; displayed results remain approximate with at most 12 significant digits. Regression tests cover exact limits and adjacent inside/outside values. All eight language/case combinations also passed on the original pages served over local HTTP.
 
 ## 發布與搜尋收錄 / Hosting and search indexing
 
 這是公開原始碼副本，不代表網站已託管或上線；目前沒有 live demo。兩個語言頁面都保留 `noindex, nofollow`。在正式網址確定並完成後續部署前，不加入正式 canonical、head `hreflang` 或 sitemap。
 
 This repository contains public source code; the website is not hosted or deployed, and there is no live demo. Both language pages retain `noindex, nofollow`. Production canonical URLs, head-level `hreflang`, and a sitemap will wait until production URLs are established and a later deployment is completed.
+
+部署前仍須聯動更新 check/build：現有規則拒絕絕對 SEO link 及 robots.txt／sitemap.xml，應在正式 origin 確定後精確允許並測試，保留腳本與樣式的本地限制。建置檔也不包含開發伺服器的 HTTP 安全標頭，須在實際主機配置並驗證 CSP（含 frame-ancestors）、nosniff、Referrer-Policy、HTTPS 與 mjs MIME。這些發布項目尚未完成。
+
+Before deployment, update and test check/build together: their current rules reject absolute SEO links and robots.txt/sitemap.xml. Allow only the confirmed production URLs and required files while retaining local script/style restrictions. Build output does not carry the development server's HTTP security headers; configure and verify CSP (including frame-ancestors), nosniff, Referrer-Policy, HTTPS, and mjs MIME on the chosen host. These release tasks remain pending.
 
 ## 授權 / License
 

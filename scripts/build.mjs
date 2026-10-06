@@ -1,7 +1,9 @@
-import { copyFile, lstat, mkdir, readdir, realpath, rm } from "node:fs/promises";
+import { copyFile, lstat, mkdir, readdir, realpath, rm, writeFile, readFile } from "node:fs/promises";
 import { dirname, extname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runProjectCheck } from "./check.mjs";
+import { checkReleaseOutput, runProjectCheck } from "./check.mjs";
+import { cloudflarePolicy } from "./cloudflare.mjs";
+import { PAGE_PATHS, parseReleaseArgs, productionHtml, releasePolicy } from "./release.mjs";
 
 const PROJECT_ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const ALLOWED_EXTENSIONS = new Set([".html", ".css", ".js", ".mjs"]);
@@ -91,7 +93,13 @@ async function validateDistTarget(projectRoot, distPath) {
   }
 }
 
-export async function buildProject({ projectPath = PROJECT_ROOT, check = runProjectCheck } = {}) {
+export async function buildProject({ projectPath = PROJECT_ROOT, check = runProjectCheck, production = false, cloudflare = false, siteUrl } = {}) {
+  if (typeof production !== "boolean" || typeof cloudflare !== "boolean" || (!production && siteUrl !== undefined)) {
+    throw new Error("site-url requires explicit production mode.");
+  }
+  if (cloudflare && !production) throw new Error("Cloudflare output requires explicit production mode.");
+  const policy = production ? releasePolicy(siteUrl) : null;
+  const hostingPolicy = cloudflare ? cloudflarePolicy(siteUrl) : null;
   await check(projectPath);
 
   let projectRoot;
@@ -102,6 +110,15 @@ export async function buildProject({ projectPath = PROJECT_ROOT, check = runProj
   }
 
   const { files } = await collectPublicFiles(projectRoot);
+  const generated = new Map(policy?.files ?? []);
+  for (const [name, contents] of hostingPolicy?.files ?? []) generated.set(name, contents);
+  if (policy) {
+    for (const page of PAGE_PATHS) {
+      const source = files.find((entry) => entry.relativePath.split(sep).join("/") === page);
+      if (!source) throw new Error(`Missing language page: ${page}`);
+      generated.set(page, productionHtml(await readFile(source.sourcePath, "utf8"), page, policy));
+    }
+  }
   const distPath = resolve(projectRoot, "dist");
   await validateDistTarget(projectRoot, distPath);
 
@@ -126,13 +143,19 @@ export async function buildProject({ projectPath = PROJECT_ROOT, check = runProj
     await copyFile(canonicalSource, targetPath);
   }
 
-  return { outputPath: distPath, fileCount: files.length };
+  for (const [name, contents] of generated) await writeFile(resolve(distPath, name), contents, "utf8");
+  if (policy) await checkReleaseOutput(distPath, { siteUrl, cloudflare });
+
+  return {
+    outputPath: distPath,
+    fileCount: files.length + (policy?.files.size ?? 0) + (hostingPolicy?.files.size ?? 0),
+  };
 }
 
 const invokedPath = process.argv[1] ? resolve(process.argv[1]) : "";
 if (invokedPath === fileURLToPath(import.meta.url)) {
   try {
-    const result = await buildProject();
+    const result = await buildProject(parseReleaseArgs(process.argv.slice(2)));
     process.stdout.write(`Built ${result.fileCount} static files into dist.\n`);
   } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : "Build failed."}\n`);

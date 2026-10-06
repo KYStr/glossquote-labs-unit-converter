@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readFile, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { ALLOWED_SITE_ANCHOR_URLS } from "../scripts/release.mjs";
 
 const pages = [
   { file: "index.html", lang: "zh-Hant", other: "./en/index.html", title: /常用單位換算/, words: ["長度", "面積", "質量", "容量", "溫度", "溫差", "64", "12", "1e-12", "1e12"] },
@@ -52,7 +53,14 @@ for (const page of pages) {
     }
     assert.match(html, /<fieldset\b[^>]*\bid="converter-controls"[^>]*\bdisabled/);
     assert.match(html, /<output\b[^>]*\baria-live="off"/);
-    assert.doesNotMatch(html, /<link\b[^>]*\brel="(?:canonical|alternate)"/);
+    assert.doesNotMatch(html, /<link\b[^>]*\brel="canonical"/);
+    const headAlternates = [...html.matchAll(/<link\b[^>]*\brel="alternate"[^>]*>/g)].map(([tag]) => attributes(tag));
+    assert.deepEqual(headAlternates.map((link) => [link.hreflang, link.href]).sort(([a], [b]) => a.localeCompare(b)),
+      page.lang === "zh-Hant"
+        ? [["en", "./en/index.html"], ["x-default", "./index.html"], ["zh-Hant", "./index.html"]]
+        : [["en", "./index.html"], ["x-default", "../index.html"], ["zh-Hant", "../index.html"]]);
+    assert.match(html, /前往其他頁面會清除目前輸入|Going to another page clears the current input/);
+    assert.match(html, /Leaving this page clears the current input|離開本頁會清除目前輸入/);
     if (page.lang === "en") assert.doesNotMatch(body.replaceAll("繁體中文", ""), /[\u3400-\u9fff]/);
   });
 
@@ -73,8 +81,14 @@ for (const page of pages) {
       assert.equal(link.lang, link.hreflang);
       assert.equal(link.text, link.lang === "en" ? "English" : "繁體中文");
     }
+    const externalAnchors = links.filter((link) => link.href.startsWith("https://"));
+    assert.deepEqual(externalAnchors.map((link) => link.href).sort(), page.lang === "zh-Hant"
+      ? ["https://glossquote.com/index.html", "https://glossquote.com/index.html", "https://date.glossquote.com/index.html"].sort()
+      : ["https://glossquote.com/en/index.html", "https://glossquote.com/en/index.html", "https://date.glossquote.com/en/index.html"].sort());
+    assert.ok(externalAnchors.every((link) => ALLOWED_SITE_ANCHOR_URLS.includes(link.href)));
     const publicRoot = fileURLToPath(new URL("../public/", import.meta.url));
     for (const [, href] of html.matchAll(/\b(?:src|href)="([^"]+)"/g)) {
+      if (ALLOWED_SITE_ANCHOR_URLS.includes(href)) continue;
       if (href.startsWith("#")) continue;
       assert.ok(href.startsWith("./") || href.startsWith("../"), `Expected relative local link: ${href}`);
       assert.doesNotMatch(href, /[?#]/);

@@ -60,6 +60,7 @@ async function writeFixtureProject(projectRoot) {
     "scripts",
     "public/styles",
     "public/js",
+    "public/en",
     "test",
   ];
   for (const directory of directories) {
@@ -78,11 +79,15 @@ async function writeFixtureProject(projectRoot) {
     ["scripts/serve.mjs", "export {};\n"],
     ["scripts/check.mjs", "export {};\n"],
     ["scripts/build.mjs", "export {};\n"],
+    ["scripts/release.mjs", "export {};\n"],
+    ["scripts/cloudflare.mjs", "export {};\n"],
     ["public/index.html", "<!doctype html><html><head><link rel=\"stylesheet\" href=\"./styles/app.css\"><script type=\"module\" src=\"./js/app.mjs\"></script></head><body><h1>Fixture</h1></body></html>\n"],
+    ["public/en/index.html", "<!doctype html><html><head><link rel=\"stylesheet\" href=\"../styles/app.css\"><script type=\"module\" src=\"../js/app.mjs\"></script></head><body><h1>Fixture</h1></body></html>\n"],
     ["public/styles/tokens.css", ":root {}\n"],
     ["public/styles/app.css", "body { color: black; }\n"],
     ["public/js/app.mjs", "export {};\n"],
     ["test/scaffold.test.mjs", "import { test } from \"node:test\"; test(\"fixture\", () => {});\n"],
+    ["wrangler.jsonc", "{}\n"],
   ]);
 
   for (const [name, contents] of files) {
@@ -286,7 +291,7 @@ test("build copies only public files within dist", async () => {
     const canonicalOutput = await realpath(result.outputPath);
     assert.ok(isWithin(canonicalRoot, canonicalOutput));
     assert.equal(relative(canonicalRoot, canonicalOutput), "dist");
-    assert.equal(result.fileCount, 4);
+    assert.equal(result.fileCount, 5);
     assert.match(await readFile(resolve(canonicalOutput, "index.html"), "utf8"), /Fixture/);
     assert.match(await readFile(resolve(canonicalOutput, "js/app.mjs"), "utf8"), /export/);
     await assert.rejects(readFile(resolve(canonicalOutput, "docs/notes.txt")));

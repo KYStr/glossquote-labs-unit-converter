@@ -2,6 +2,8 @@ import { spawnSync } from "node:child_process";
 import { lstat, readFile, realpath, readdir } from "node:fs/promises";
 import { dirname, extname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { cloudflarePolicy } from "./cloudflare.mjs";
+import { ALLOWED_SITE_ANCHOR_URLS, PAGE_PATHS, assertProductionHtml, parseReleaseArgs, releasePolicy } from "./release.mjs";
 
 const PROJECT_ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const REQUIRED_PATHS = Object.freeze([
@@ -9,16 +11,21 @@ const REQUIRED_PATHS = Object.freeze([
   "scripts/serve.mjs",
   "scripts/check.mjs",
   "scripts/build.mjs",
+  "scripts/release.mjs",
+  "scripts/cloudflare.mjs",
   "public/index.html",
+  "public/en/index.html",
   "public/styles/tokens.css",
   "public/styles/app.css",
   "public/js/app.mjs",
   "test/scaffold.test.mjs",
+  "wrangler.jsonc",
 ]);
 const CONTROLLED_DIRS = Object.freeze(["scripts", "public", "test"]);
 const SCANNED_EXTENSIONS = new Set([".html", ".css", ".js", ".mjs"]);
 const PUBLIC_EXTENSIONS = new Set([".html", ".css", ".js", ".mjs"]);
 const CODE_EXTENSIONS = new Set([".js", ".mjs"]);
+const ALLOWED_SITE_ANCHOR_URL_SET = new Set(ALLOWED_SITE_ANCHOR_URLS);
 const EXPECTED_SCRIPTS = Object.freeze({
   dev: "node scripts/serve.mjs",
   test: "node --test",
@@ -237,27 +244,44 @@ async function resolveLocalReference(value, sourcePath, allowedRoot, failures, p
   }
 }
 
-async function checkHtml(source, filePath, publicRoot, projectRoot, failures) {
+async function resolveAnchorReference(value, sourcePath, publicRoot, failures, projectRoot) {
+  const reference = value.trim();
+  if (ALLOWED_SITE_ANCHOR_URL_SET.has(reference)) return;
+  if (/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(reference)) {
+    failures.push(`${displayPath(projectRoot, sourcePath)}: anchor URL is not an approved site link`);
+    return;
+  }
+  await resolveLocalReference(reference, sourcePath, publicRoot, failures, projectRoot);
+}
+
+async function checkHtml(source, filePath, publicRoot, projectRoot, failures, metadataLinks = []) {
   const html = stripComments(source, "html");
   if (/<base\b/i.test(html) || /<style\b/i.test(html) || /\sstyle\s*=/i.test(html) || /\son[a-z]+\s*=/i.test(html)) {
     failures.push(`${displayPath(projectRoot, filePath)}: inline execution or style markup is not allowed`);
   }
 
   const tags = html.matchAll(/<([a-z][a-z\d:-]*)\b([^>]*)>/gi);
-  for (const [, tagName, attributes] of tags) {
-    const isScript = tagName.toLowerCase() === "script";
+  for (const [wholeTag, tagName, attributes] of tags) {
+    if (metadataLinks.includes(wholeTag)) continue;
+    const normalizedTag = tagName.toLowerCase();
+    const isScript = normalizedTag === "script";
     const hasSource = /\bsrc\s*=/i.test(attributes);
     if (isScript && !hasSource) {
       failures.push(`${displayPath(projectRoot, filePath)}: inline scripts are not allowed`);
     }
+    if (/(?:^|\s)ping(?:\s|=|$)/i.test(attributes)) {
+      failures.push(`${displayPath(projectRoot, filePath)}: anchor ping is not allowed`);
+    }
 
-    const references = attributes.matchAll(/\b(src|href|poster|action|srcset)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/gi);
+    const references = attributes.matchAll(/\b(src|href|poster|action|formaction|srcset)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/gi);
     for (const [, attributeName, doubleQuoted, singleQuoted, unquoted] of references) {
       const attributeValue = doubleQuoted ?? singleQuoted ?? unquoted ?? "";
       if (attributeName.toLowerCase() === "srcset") {
         for (const candidate of attributeValue.split(",")) {
           await resolveLocalReference(candidate.trim().split(/\s+/)[0], filePath, publicRoot, failures, projectRoot);
         }
+      } else if (attributeName.toLowerCase() === "href" && normalizedTag === "a") {
+        await resolveAnchorReference(attributeValue, filePath, publicRoot, failures, projectRoot);
       } else {
         await resolveLocalReference(attributeValue, filePath, publicRoot, failures, projectRoot);
       }
@@ -399,11 +423,78 @@ export async function runProjectCheck(projectPath = PROJECT_ROOT) {
   return { ok: true, checkedFiles: files.length };
 }
 
+export async function checkReleaseOutput(outputPath, { siteUrl, cloudflare = false } = {}) {
+  if (typeof cloudflare !== "boolean") throw new Error("Cloudflare check mode must be boolean.");
+  const policy = releasePolicy(siteUrl);
+  const hostingPolicy = cloudflare ? cloudflarePolicy(siteUrl) : null;
+  const root = resolve(outputPath);
+  const rootInfo = await lstat(root);
+  if (!rootInfo.isDirectory() || rootInfo.isSymbolicLink()) throw new Error("Release root must be a regular directory.");
+  const canonicalRoot = await realpath(root);
+  const failures = [];
+  const files = [];
+
+  async function visit(directory) {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = resolve(directory, entry.name);
+      const info = await lstat(path);
+      if (info.isSymbolicLink() || entry.name.startsWith(".") || !isPathInside(canonicalRoot, await realpath(path))) {
+        throw new Error("Release paths must remain regular, visible, and inside the output root.");
+      }
+      if (info.isDirectory()) await visit(path);
+      else if (info.isFile()) files.push(path);
+      else throw new Error("Unsupported release path.");
+    }
+  }
+
+  await visit(canonicalRoot);
+  const names = files.map((path) => relative(canonicalRoot, path).split(sep).join("/"));
+  for (const required of [...PAGE_PATHS, ...policy.files.keys(), ...(hostingPolicy?.files.keys() ?? [])]) {
+    if (!names.includes(required)) failures.push(`Missing release file: ${required}`);
+  }
+
+  for (const path of files) {
+    const name = relative(canonicalRoot, path).split(sep).join("/");
+    const extension = extname(path).toLowerCase();
+    const source = await readFile(path, "utf8");
+    if (hostingPolicy?.files.has(name)) {
+      if (source !== hostingPolicy.files.get(name)) failures.push(`${name}: generated Cloudflare content differs from policy`);
+    } else if (policy.files.has(name)) {
+      if (source !== policy.files.get(name)) failures.push(`${name}: generated SEO content differs from policy`);
+    } else if (!PUBLIC_EXTENSIONS.has(extension)) {
+      failures.push(`${name}: unsupported release file extension`);
+    } else if (extension === ".html") {
+      if (PAGE_PATHS.includes(name)) {
+        try { assertProductionHtml(source, name, policy); }
+        catch (error) { failures.push(`${name}: ${error.message}`); }
+      }
+      await checkHtml(source, path, canonicalRoot, canonicalRoot, failures, PAGE_PATHS.includes(name) ? policy.links(name) : []);
+    } else if (extension === ".css") {
+      await checkCss(source, path, canonicalRoot, canonicalRoot, failures);
+    } else {
+      const checked = spawnSync(process.execPath, ["--check", path], {
+        shell: false,
+        encoding: "utf8",
+        windowsHide: true,
+      });
+      if (checked.error || checked.status !== 0) failures.push(`${name}: JavaScript syntax check failed`);
+      checkForbiddenApis(source, path, canonicalRoot, failures);
+      await checkModuleReferences(source, path, "public", canonicalRoot, canonicalRoot, failures);
+    }
+  }
+
+  if (failures.length > 0) throw new Error(`Release check failed:\n- ${failures.join("\n- ")}`);
+  return { ok: true, checkedFiles: files.length };
+}
+
 const invokedPath = process.argv[1] ? resolve(process.argv[1]) : "";
 if (invokedPath === fileURLToPath(import.meta.url)) {
   try {
-    const result = await runProjectCheck();
-    process.stdout.write(`Static checks passed for ${result.checkedFiles} managed source files. Keyword scans are not a security certification.\n`);
+    const options = parseReleaseArgs(process.argv.slice(2));
+    const result = options.production
+      ? await checkReleaseOutput(resolve(PROJECT_ROOT, "dist"), options)
+      : await runProjectCheck();
+    process.stdout.write(`Static checks passed for ${result.checkedFiles} ${options.production ? "release" : "managed source"} files. Keyword scans are not a security certification.\n`);
   } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : "Project check failed."}\n`);
     process.exitCode = 1;

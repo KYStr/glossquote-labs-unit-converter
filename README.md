@@ -82,13 +82,20 @@ Audit F-01 is fixed: input `1e-12` now correctly produces `1e-18` for mm→km, m
 
 ## 發布與搜尋收錄 / Hosting and search indexing
 
-這是公開原始碼副本，不代表網站已託管或上線；目前沒有 live demo。兩個語言頁面都保留 `noindex, nofollow`。在正式網址確定並完成後續部署前，不加入正式 canonical、head `hreflang` 或 sitemap。
+正式網址已定為 https://units.glossquote.com/，本輪部署仍待真實主機驗收。繁中為`/index.html`，英文為`/en/index.html`。原始碼與預設建置保留 `noindex, nofollow`，明確正式建置才產生self-canonical、雙語hreflang、x-default、robots與sitemap。
 
-This repository contains public source code; the website is not hosted or deployed, and there is no live demo. Both language pages retain `noindex, nofollow`. Production canonical URLs, head-level `hreflang`, and a sitemap will wait until production URLs are established and a later deployment is completed.
+The production origin is https://units.glossquote.com/; live verification for this release is pending. Traditional Chinese uses `/index.html` and English uses `/en/index.html`. Source and default builds remain noindex previews. Explicit production builds emit canonical URLs, bilingual hreflang, x-default, robots and sitemap.
 
-部署前仍須聯動更新 check/build：現有規則拒絕絕對 SEO link 及 robots.txt／sitemap.xml，應在正式 origin 確定後精確允許並測試，保留腳本與樣式的本地限制。建置檔也不包含開發伺服器的 HTTP 安全標頭，須在實際主機配置並驗證 CSP（含 frame-ancestors）、nosniff、Referrer-Policy、HTTPS 與 mjs MIME。這些發布項目尚未完成。
+```sh
+npm run build -- --production --cloudflare --site-url https://units.glossquote.com/
+npm run check -- --production --cloudflare --site-url https://units.glossquote.com/
+```
 
-Before deployment, update and test check/build together: their current rules reject absolute SEO links and robots.txt/sitemap.xml. Allow only the confirmed production URLs and required files while retaining local script/style restrictions. Build output does not carry the development server's HTTP security headers; configure and verify CSP (including frame-ancestors), nosniff, Referrer-Policy, HTTPS, and mjs MIME on the chosen host. These release tasks remain pending.
+Cloudflare模式產生13檔，包含安全標頭及三個301別名轉址；預設預覽為9檔。`wrangler.jsonc`使用純Static Assets、html_handling none、未知路徑404，workers.dev／預覽網址／自訂日誌／追蹤均關閉。不新增產品依賴。GitHub push與Wrangler正式部署是兩個獨立步驟；未配置Git自動部署。搜尋引擎實際收錄尚未驗證。
+
+Cloudflare builds contain 13 files, including security headers and three permanent alias redirects; previews contain 9 files. Static-only hosting preserves explicit index.html URLs, returns 404 for unknown paths, and disables workers.dev, preview URLs, custom logs and tracking. No product dependency is added. GitHub source publication and Wrangler deployment are separate; automatic Git deployment is not configured. Actual search-engine indexing is unverified.
+
+家族導覽 / Family navigation: 頂部與頁尾可前往同語言[所有工具](https://glossquote.com/index.html)與[日期計算](https://date.glossquote.com/index.html)，不攜帶輸入或追蹤參數。Only six exact family page URLs are allowed as navigation anchors. Remote scripts, styles, images, forms, and link pings remain rejected.
 
 ## 授權 / License
 

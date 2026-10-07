@@ -1,5 +1,7 @@
 # GlossQuote-Labs — 常用單位換算 / Unit Converter
 
+正式網站 / Live website: [繁體中文](https://units.glossquote.com/index.html) · [English](https://units.glossquote.com/en/index.html)
+
 ## 繁體中文
 
 GlossQuote-Labs 常用單位換算讓你在瀏覽器中快速換算數值，並查看結果與使用的公式。提供 5 類、共 20 個固定單位：長度、面積、質量、容量與溫度。
@@ -82,9 +84,9 @@ Audit F-01 is fixed: input `1e-12` now correctly produces `1e-18` for mm→km, m
 
 ## 發布與搜尋收錄 / Hosting and search indexing
 
-正式網址已定為 https://units.glossquote.com/，本輪部署仍待真實主機驗收。繁中為`/index.html`，英文為`/en/index.html`。原始碼與預設建置保留 `noindex, nofollow`，明確正式建置才產生self-canonical、雙語hreflang、x-default、robots與sitemap。
+2026-10-07 已正式部署於免費 Cloudflare Static Assets，32 項 HTTPS GET/HEAD/轉址/404/MIME/安全標頭/SEO 驗證通過，11 份公開檔案與正式建置完全一致。繁中、英文的 1 m → 100 cm 與首頁、日期工具互連已實測。實作通過 65 項離線測試；上列人工待驗項保留。繁中為`/index.html`，英文為`/en/index.html`。原始碼與預設建置保留 `noindex, nofollow`，明確正式建置才產生self-canonical、雙語hreflang、x-default、robots與sitemap。
 
-The production origin is https://units.glossquote.com/; live verification for this release is pending. Traditional Chinese uses `/index.html` and English uses `/en/index.html`. Source and default builds remain noindex previews. Explicit production builds emit canonical URLs, bilingual hreflang, x-default, robots and sitemap.
+Deployed on free Cloudflare Static Assets on 2026-10-07. All 32 live HTTPS checks passed and all 11 public assets match the reviewed production build byte for byte. Both language versions convert 1 m to 100 cm and link to the matching-language homepage and date tool. The implementation passed 65 offline tests; the manual checks above remain pending. Traditional Chinese uses `/index.html` and English uses `/en/index.html`. Source and default builds remain noindex previews. Explicit production builds emit canonical URLs, bilingual hreflang, x-default, robots and sitemap.
 
 ```sh
 npm run build -- --production --cloudflare --site-url https://units.glossquote.com/
